@@ -1,0 +1,93 @@
+---
+title: "Decision Tree"
+output: html_document
+---
+
+
+# Load data and packages
+
+```{r}
+
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(tidymodels)
+library(caret)
+library(e1071)
+
+
+customer_behavior <- read_csv("customer_behavior-1.csv")
+customer_behavior_test <- read_csv("customer_behavior_test.csv")
+
+
+```
+
+
+# Preping data
+
+```{r}
+
+customer_behavior %>%
+  mutate(eReader_Adoption = ifelse(eReader_Adoption == "Early Adopter", "Early Adopter", "Not an Early Adopter")) %>%
+  ggplot(aes(x = eReader_Adoption)) +
+  geom_bar()
+
+customer_behavior <- customer_behavior %>%
+  mutate(eReader_Adoption = ifelse(eReader_Adoption == "Early Adopter", "Early Adopter", "Not an Early Adopter")) %>%
+  mutate(eReader_Adoption = factor(eReader_Adoption)) %>%
+  select(-User_ID)
+
+levels(customer_behavior$eReader_Adoption)
+
+```
+
+
+# Spliting data
+
+```{r}
+
+set.seed(1)
+
+split <- initial_split(customer_behavior, prop = 0.6)
+
+training_data <- training(split)
+testing_data <- testing(split)
+
+
+```
+
+# Building decision tree
+
+```{r}
+
+customer_tree <- rpart(eReader_Adoption ~ Age + Bought_Digital_Books, data = training_data, parms = list(split = "gini"), method = "class") #function for creating the decision tree. lm is for regression analysis. 
+
+prp(customer_tree, faclen = 0, varlen = 0, cex = 0.75, yesno = 0)
+
+```
+
+# Confusion Matrix 
+
+```{r}
+
+prediction_testing <- data.frame(my_predictions = predict(customer_tree, newdata = training_data, type = "class"))
+prediction_testing_2 <- data.frame(my_predictions = predict(customer_tree, newdata = testing_data, type = "class")) #This is with our testing data (the data that our model has never seen)
+
+training_data %>%
+  mutate(predicted_results = prediction_testing$my_predictions) %>%
+  select(Age, Bought_Digital_Books, eReader_Adoption, predicted_results) 
+
+testing_data %>%
+  mutate(predicted_results = prediction_testing_2$my_predictions) %>%
+  select(Age, Bought_Digital_Books, eReader_Adoption, predicted_results) 
+
+
+confusionMatrix(prediction_testing$my_predictions, training_data$eReader_Adoption)
+confusionMatrix(prediction_testing_2$my_predictions, testing_data$eReader_Adoption)
+
+
+
+```
+
+
+
